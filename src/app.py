@@ -151,6 +151,34 @@ def add_book():
         db.session.commit()
         return jsonify(message="You added a new book!"), 201
 
+@app.route('/update_book', methods=['PUT'])
+@jwt_required()
+def update_book():
+    book_id = int(request.form['book_id'])
+    book = Book.query.filter_by(book_id=book_id).first()
+    if book:
+        book.title = request.form['title']
+        book.author = request.form['author']
+        book.genre = request.form['genre']
+        book.synopsis = request.form['synopsis']
+        book.publication_year = int(request.form['publication_year'])
+        db.session.commit()
+        return jsonify(message="You updated a book!"), 202
+    else:
+        return jsonify(message="Book does not exist"), 404
+
+@app.route('/delete_book/<int:book_id>', methods=['DELETE'])
+@jwt_required()
+def delete_book(book_id: int):
+    book = Book.query.filter_by(book_id=book_id).first()
+    if book:
+        db.session.delete(book)
+        db.session.commit()
+        return jsonify(message="You deleted a book"), 202
+    else: 
+         return jsonify(message="That book does not exist"), 202
+
+
 
     # database models
 class User(db.Model):

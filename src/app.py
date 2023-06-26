@@ -1,9 +1,10 @@
 from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
-from flask_marshmallow import Marshmallow
+from flask_marshmallow import Marshmallow, fields
+from marshmallow import fields
+from flask_bcrypt import Bcrypt
 from flask_jwt_extended import JWTManager, jwt_required, create_access_token
-from flask_mail import Mail, Message
-from datetime import timedelta
+from datetime import timedelta, date
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import Column, Integer, String, Float
 import os
@@ -15,18 +16,13 @@ app.config[
     "SQLALCHEMY_DATABASE_URI"
 ] = "postgresql+psycopg2://ben:amigo@localhost:5432/bookclub"
 app.config['JWT_SECRET_KEY'] = 'friend'
-app.config['MAIL_SERVER']='sandbox.smtp.mailtrap.io'
-app.config['MAIL_PORT'] = 2525
-app.config['MAIL_USERNAME'] = '610eb6ffbcc1bf'
-app.config['MAIL_PASSWORD'] = '551772e0462e6e'
-app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USE_SSL'] = False
+
 
 
 db = SQLAlchemy(app)
 ma = Marshmallow(app)
 jwt = JWTManager(app)
-mail = Mail(app)
+bcrypt = Bcrypt(app)
 
 @app.cli.command('db_create')
 def db_create(): 
@@ -62,16 +58,40 @@ def db_seed():
     ]
 
     db.session.add_all(books)
-    db.session.commit()
 
-    test_user = User(
+    test_users = [
+        User(
         username='Booklover69',
         email='Booklover69@gmail.com',
-        password='ilovebooks')
+        password=bcrypt.generate_password_hash('ilovebooks').decode('utf-8')),
+        User(
+        username='BenP',
+        email='BenP@gmail.com',
+        password=bcrypt.generate_password_hash('ayylmao').decode('utf-8'),
+        is_admin=True)
+    ]
+    for user in test_users:
+        db.session.add(user)
 
-    db.session.add(test_user)
+    db.session.commit()
+
+    reviews = [
+        Review(
+            review_content="OMG I LOVE THIS BOOK!! SO GOOD!!",
+            date_created=date.today(),
+            user_id=test_users[0].id,
+            book_id=books[1].book_id,
+            username=test_users[0].username,
+            title=books[1].title,
+        )
+    ]
+    
+    db.session.query(Review).delete()
+    db.session.add_all(reviews)
+
     db.session.commit()
     print('Database seeded successfully')
+    
 
     
 @app.route("/books", methods=["GET"])
@@ -90,38 +110,24 @@ def register():
         username = request.form['username']
         email = request.form['email']
         password = request.form['password']
-        user = User(username=username, email=email, password=password)
+        user = User(username=username, email=email, password=bcrypt.generate_password_hash(password).decode('utf8'))
         db.session.add(user)
         db.session.commit()
-        return jsonify(message="User created successfully"), 201
-
+        return UserSchema(exclude=['password']).dump(user), 201
+    
 @app.route('/login', methods=['POST'])
 def login():
-    if request.is_json:
-        email = request.json['email']
-        password = request.json['password']
-    else:
-        email = request.form['email']
-        password = request.form['password']
+    try:
+        stmt = db.select(User).filter_by(email=request.json['email'])
+        user = db.session.scalar(stmt)
+        if user and bcrypt.check_password_hash(user.password, request.json['password']):
+            token = create_access_token(identity=user.email, expires_delta=timedelta(days=1))
+            return {'token': token, 'user': UserSchema(exclude=['password']).dump(user)}
+        else:
+            return {'error': 'Invalid email address or password'}, 401
+    except KeyError:
+        return {'error': 'Email and password are required'}, 400
 
-    test = User.query.filter_by(email=email, password=password).first()
-    if test:
-        access_token = create_access_token(identity=email, expires_delta=timedelta(days=3))
-        return jsonify(message="Login successful!", access_token=access_token)
-    else:
-        return jsonify(message="Email or password incorrect"), 401
-
-@app.route('/recover_password/<string:email>', methods=['GET'])
-def recover_password(email: str):
-    user = User.query.filter_by(email=email).first()
-    if user:
-        msg = Message("Your Book Club password is " + user.password, 
-        sender="admin@bookclubapi.com",
-        recipients=[email])
-        mail.send(msg)
-        return jsonify(message="Password sent to " + email)
-    else: 
-        return jsonify(message="That email does not exist"), 401
 
 @app.route('/book_details/<int:book_id>', methods=['GET'])
 def book_details(book_id: int):
@@ -190,6 +196,8 @@ class User(db.Model):
     password = db.Column(db.String, nullable=False)
     is_admin = db.Column(db.Boolean, default=False)
 
+    reviews = db.relationship('Review', back_populates='user')
+
 class Book(db.Model):
     __tablename__ = "books"
 
@@ -200,13 +208,46 @@ class Book(db.Model):
     synopsis = db.Column(db.String, nullable=False)
     publication_year = db.Column(db.Integer, nullable=False)
 
+    reviews = db.relationship('Review', back_populates='book')
+
+class Review(db.Model):
+    __tablename__ = "reviews"
+
+    review_id = db.Column(db.Integer, primary_key=True)
+    review_content = db.Column(db.String, nullable=False)
+    date_created = db.Column(db.Date())
+
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    username = db.Column(db.String, nullable=False)
+    user = db.relationship('User', back_populates='reviews')
+
+    book_id = db.Column(db.Integer, db.ForeignKey('books.book_id'), nullable=False)
+    title = db.Column(db.String, nullable=False)
+    book = db.relationship('Book', back_populates='reviews')
+
+class ReviewSchema(ma.Schema):
+  user = fields.Nested('UserSchema')
+  book = fields.Nested('BookSchema')
+
+  class Meta:
+    fields = ('review_id', 'review_content', 'date_created', 'user', 'book')
+    ordered = True
+
+
 class UserSchema(ma.Schema):
+    reviews = fields.List(fields.Nested('ReviewSchema'))
+
     class Meta:
-        fields = ('id', 'username', 'email', 'password', 'is_admin')
+        fields = ('id', 'username', 'email', 'password', 'is_admin', 'reviews')
 
 class BookSchema(ma.Schema):
+    reviews = fields.List(fields.Nested('ReviewSchema', only=['review_content']))
+
     class Meta:
-        fields = ('book_id', 'title', 'author', 'genre', 'synopsis', 'publication_year')
+        fields = ('book_id', 'title', 'author', 'genre', 'synopsis', 'publication_year', 'user', 'reviews')
+
+review_schema = ReviewSchema()
+reviews_schema = ReviewSchema(many=True)
 
 user_schema = UserSchema()
 users_schema = UserSchema(many=True)

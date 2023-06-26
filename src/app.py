@@ -230,7 +230,7 @@ class ReviewSchema(ma.Schema):
   book = fields.Nested('BookSchema')
 
   class Meta:
-    fields = ('review_id', 'review_content', 'date_created', 'user', 'book')
+    fields = ('review_id', 'review_content', 'date_created', 'user', 'book', 'username', 'review_content', 'user_id', 'date_created')
     ordered = True
 
 
@@ -241,7 +241,7 @@ class UserSchema(ma.Schema):
         fields = ('id', 'username', 'email', 'password', 'is_admin', 'reviews')
 
 class BookSchema(ma.Schema):
-    reviews = fields.List(fields.Nested('ReviewSchema', only=['review_content']))
+    reviews = fields.List(fields.Nested('ReviewSchema', only=['username', 'review_content', 'user_id', 'date_created']))
 
     class Meta:
         fields = ('book_id', 'title', 'author', 'genre', 'synopsis', 'publication_year', 'user', 'reviews')

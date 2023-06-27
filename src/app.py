@@ -1,12 +1,12 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, abort
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow, fields
 from marshmallow import fields
 from flask_bcrypt import Bcrypt
-from flask_jwt_extended import JWTManager, jwt_required, create_access_token
+from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity
 from datetime import timedelta, date
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy import Column, Integer, String, Float
+from sqlalchemy import select
 import os
 import psycopg2
 
@@ -18,21 +18,17 @@ app.config[
 app.config['JWT_SECRET_KEY'] = 'friend'
 
 
-
 db = SQLAlchemy(app)
 ma = Marshmallow(app)
 jwt = JWTManager(app)
 bcrypt = Bcrypt(app)
 
 @app.cli.command('db_create')
-def db_create(): 
+def db_create():
+    db.drop_all() 
     db.create_all()
     print('Database created successfully')
 
-@app.cli.command('db_drop')
-def db_drop():
-    db.drop_all()
-    print('Database dropped successfully')
 
 @app.cli.command('db_seed')    
 def db_seed():
@@ -83,6 +79,14 @@ def db_seed():
             book_id=books[1].book_id,
             username=test_users[0].username,
             title=books[1].title,
+        ),
+        Review(
+            review_content="Greatest book of all time",
+            date_created=date.today(),
+            user_id=test_users[1].id,
+            book_id=books[0].book_id,
+            username=test_users[1].username,
+            title=books[0].title,
         )
     ]
     
@@ -92,13 +96,24 @@ def db_seed():
     db.session.commit()
     print('Database seeded successfully')
     
-
+def admin_or_owner_required(owner_email):
+    user_email = get_jwt_identity()
+    stmt = db.select(User).filter_by(email=user_email)
+    user = db.session.scalar(stmt)
+    if not (user and (user.is_admin or user_email == owner_email)):
+        abort(401, description='You must be an admin or the owner')
     
 @app.route("/books", methods=["GET"])
 def books():
     books_list = Book.query.all()
     result = books_schema.dump(books_list)
     return jsonify(result)
+
+# @app.route("/reviews", methods=["GET"])
+# def reviews():
+#     reviews_list = Review.query.all()
+#     result = reviews_schema.dump(reviews_list)
+#     return jsonify(result)
 
 @app.route("/register", methods=['POST'])
 def register():
@@ -167,11 +182,12 @@ def update_review():
     review_id = int(request.json['review_id'])
     review = Review.query.filter_by(review_id=review_id).first()
     if review:
+        admin_or_owner_required(review.user.email)
         review.review_content=request.json['review_content'],
         review.date_created=request.json['date_created'],
         review.username=request.json['username'],
-        review.book_id=request.json['book_id'],
-        review.user_id=request.json['user_id'],
+        review.book_id=int(request.json['book_id']),
+        review.user_id=int(request.json['user_id']),
         review.title=request.json['title']
         db.session.commit()
         return jsonify(message="You updated a review!"), 202
@@ -229,6 +245,7 @@ def delete_book(book_id: int):
 def delete_review(review_id: int):
     review = Review.query.filter_by(review_id=review_id).first()
     if review:
+        admin_or_owner_required(review.user.email)
         db.session.delete(review)
         db.session.commit()
         return jsonify(message="You deleted a review"), 202

@@ -75,42 +75,39 @@ def db_seed():
         Review(
             review_content="OMG I LOVE THIS BOOK!! SO GOOD!!",
             date_created=date.today(),
-            user_id=test_users[0].id,
-            book_id=books[1].book_id,
+            user=test_users[0],
+            book=books[1],
             username=test_users[0].username,
-            title=books[1].title,
+            title=books[1].title
         ),
         Review(
             review_content="Greatest book of all time",
             date_created=date.today(),
-            user_id=test_users[1].id,
-            book_id=books[0].book_id,
+            user=test_users[1],
+            book=books[0],
             username=test_users[1].username,
-            title=books[0].title,
+            title=books[0].title
         )
     ]
-    
-    db.session.query(Review).delete()
-    db.session.add_all(reviews)
 
+    db.session.add_all(reviews)
     db.session.commit()
 
     comments = [
         Comment(
-            comment_content="I disagree wit ye ma boy",
+            comment_content="I disagree with you, my boy",
             date_created=date.today(),
-            user_id=test_users[1].id,
-            username=test_users[1].username,
-            review_id=reviews[1].review_id,
+            user=test_users[1],
+            review=reviews[1],
+            username=test_users[1].username
         )
     ]
 
-    db.session.query(Comment).delete()
     db.session.add_all(comments)
-
     db.session.commit()
 
     print('Database seeded successfully')
+
     
 def admin_or_owner_required(owner_email):
     user_email = get_jwt_identity()
@@ -125,11 +122,6 @@ def books():
     result = books_schema.dump(books_list)
     return jsonify(result)
 
-# @app.route("/reviews", methods=["GET"])
-# def reviews():
-#     reviews_list = Review.query.all()
-#     result = reviews_schema.dump(reviews_list)
-#     return jsonify(result)
 
 @app.route("/register", methods=['POST'])
 def register():
@@ -327,11 +319,11 @@ class Comment(db.Model):
     review = db.relationship('Review', back_populates='comments')
 
 class CommentSchema(ma.Schema):
-  user = fields.Nested('UserSchema', only=['username', 'user_id'])
+  user = fields.Nested('UserSchema', only=['username', 'id'])
   review = fields.Nested('ReviewSchema', only=['review_id'])
 
   class Meta:
-    fields = ('comment_id', 'comment_content', 'date_created', 'user', 'username', 'user_id' 'review', 'review_id')
+    fields = ('comment_id', 'comment_content', 'date_created', 'user', 'username', 'id', 'review', 'review_id')
     ordered = True
 
 class ReviewSchema(ma.Schema):
@@ -340,7 +332,7 @@ class ReviewSchema(ma.Schema):
   comments = fields.List(fields.Nested('CommentSchema', exclude=['review', 'review_id']))
 
   class Meta:
-    fields = ('review_id', 'review_content', 'date_created', 'user', 'book', 'username', 'review_content', 'user_id', 'date_created', 'comments')
+    fields = ('review_id', 'review_content', 'date_created', 'user', 'book', 'username', 'review_content', 'id', 'date_created', 'comments')
     ordered = True
 
 
@@ -352,11 +344,10 @@ class UserSchema(ma.Schema):
         fields = ('id', 'username', 'email', 'password', 'is_admin', 'reviews', 'comments')
 
 class BookSchema(ma.Schema):
-    reviews = fields.List(fields.Nested('ReviewSchema', only=['username', 'review_content', 'user_id', 'date_created']))
-
+    reviews = fields.List(fields.Nested('ReviewSchema', only=['username', 'review_content', 'id', 'date_created', 'comments']))
+    
     class Meta:
         fields = ('book_id', 'title', 'author', 'genre', 'synopsis', 'publication_year', 'user', 'reviews')
-
 review_schema = ReviewSchema()
 reviews_schema = ReviewSchema(many=True)
 

@@ -94,6 +94,22 @@ def db_seed():
     db.session.add_all(reviews)
 
     db.session.commit()
+
+    comments = [
+        Comment(
+            comment_content="I disagree wit ye ma boy",
+            date_created=date.today(),
+            user_id=test_users[1].id,
+            username=test_users[1].username,
+            review_id=reviews[1].review_id,
+        )
+    ]
+
+    db.session.query(Comment).delete()
+    db.session.add_all(comments)
+
+    db.session.commit()
+
     print('Database seeded successfully')
     
 def admin_or_owner_required(owner_email):
@@ -265,6 +281,8 @@ class User(db.Model):
 
     reviews = db.relationship('Review', back_populates='user')
 
+    comments = db.relationship('Comment', back_populates='user')
+
 class Book(db.Model):
     __tablename__ = "books"
 
@@ -292,20 +310,46 @@ class Review(db.Model):
     title = db.Column(db.String, nullable=False)
     book = db.relationship('Book', back_populates='reviews')
 
+    comments = db.relationship('Comment', back_populates='review')
+
+class Comment(db.Model):
+    __tablename__ = "comments"
+
+    comment_id = db.Column(db.Integer, primary_key=True)
+    comment_content = db.Column(db.String, nullable=False)
+    date_created = db.Column(db.Date())
+
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    username = db.Column(db.String, nullable=False)
+    user = db.relationship('User', back_populates='comments')
+
+    review_id = db.Column(db.Integer, db.ForeignKey('reviews.review_id'), nullable=False)
+    review = db.relationship('Review', back_populates='comments')
+
+class CommentSchema(ma.Schema):
+  user = fields.Nested('UserSchema', only=['username', 'user_id'])
+  review = fields.Nested('ReviewSchema', only=['review_id'])
+
+  class Meta:
+    fields = ('comment_id', 'comment_content', 'date_created', 'user', 'username', 'user_id' 'review', 'review_id')
+    ordered = True
+
 class ReviewSchema(ma.Schema):
   user = fields.Nested('UserSchema')
   book = fields.Nested('BookSchema')
+  comments = fields.List(fields.Nested('CommentSchema', exclude=['review', 'review_id']))
 
   class Meta:
-    fields = ('review_id', 'review_content', 'date_created', 'user', 'book', 'username', 'review_content', 'user_id', 'date_created')
+    fields = ('review_id', 'review_content', 'date_created', 'user', 'book', 'username', 'review_content', 'user_id', 'date_created', 'comments')
     ordered = True
 
 
 class UserSchema(ma.Schema):
-    reviews = fields.List(fields.Nested('ReviewSchema'))
+    reviews = fields.List(fields.Nested('ReviewSchema'), exclude=['user', 'id'])
+    comments = fields.List(fields.Nested('CommentSchema', exclude=['user', 'id']))
 
     class Meta:
-        fields = ('id', 'username', 'email', 'password', 'is_admin', 'reviews')
+        fields = ('id', 'username', 'email', 'password', 'is_admin', 'reviews', 'comments')
 
 class BookSchema(ma.Schema):
     reviews = fields.List(fields.Nested('ReviewSchema', only=['username', 'review_content', 'user_id', 'date_created']))
@@ -315,6 +359,9 @@ class BookSchema(ma.Schema):
 
 review_schema = ReviewSchema()
 reviews_schema = ReviewSchema(many=True)
+
+comment_schema = CommentSchema()
+comments_schema = CommentSchema(many=True)
 
 user_schema = UserSchema()
 users_schema = UserSchema(many=True)

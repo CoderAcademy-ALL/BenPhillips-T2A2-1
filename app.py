@@ -184,6 +184,58 @@ def add_review():
 
     return jsonify(message='Review added successfully'), 201
 
+@app.route("/comments", methods=["POST"])
+def create_comment():
+    
+    comment_data = request.json
+
+    comment_content = comment_data.get('comment_content')
+    username = comment_data.get('username')
+    user_id = comment_data.get('user_id')
+    review_id = comment_data.get('review_id')
+
+    new_comment = Comment(
+        comment_content=comment_content,
+        username=username,
+        user_id=user_id,
+        review_id=review_id,
+        date_created=date.today()
+    )
+
+    db.session.add(new_comment)
+    db.session.commit()
+
+    return jsonify({'message': 'Comment created successfully'})
+
+@app.route("/comments/<comment_id>", methods=["DELETE"])
+def delete_comment(comment_id):
+    comment = Comment.query.get(comment_id)
+
+    if comment:
+        admin_or_owner_required(comment.user.email)
+        db.session.delete(comment)
+        db.session.commit()
+
+        return jsonify({'message': 'Comment deleted successfully'})
+    else:
+        return jsonify({'message': 'Comment not found'})
+    
+@app.route("/edit_comment/<comment_id>", methods=["PUT"])
+def edit_comment(comment_id):
+    comment = Comment.query.get(comment_id)
+
+    if comment:
+        admin_or_owner_required(comment.user.email)
+        data = request.get_json()
+        
+        comment.comment_content = data.get('comment_content')
+
+        db.session.commit()
+
+        return jsonify({'message': 'Comment updated successfully'})
+    else:
+        return jsonify({'message': 'Comment not found'})
+
 @app.route('/update_review', methods=['PUT'])
 @jwt_required()
 def update_review():
@@ -319,11 +371,11 @@ class Comment(db.Model):
     review = db.relationship('Review', back_populates='comments')
 
 class CommentSchema(ma.Schema):
-  user = fields.Nested('UserSchema', only=['username', 'id'])
+  user = fields.Nested('UserSchema', only=['username'])
   review = fields.Nested('ReviewSchema', only=['review_id'])
 
   class Meta:
-    fields = ('comment_id', 'comment_content', 'date_created', 'user', 'username', 'id', 'review', 'review_id')
+    fields = ('comment_content', 'username', 'review', 'review_id')
     ordered = True
 
 class ReviewSchema(ma.Schema):
@@ -348,6 +400,8 @@ class BookSchema(ma.Schema):
     
     class Meta:
         fields = ('book_id', 'title', 'author', 'genre', 'synopsis', 'publication_year', 'user', 'reviews')
+
+
 review_schema = ReviewSchema()
 reviews_schema = ReviewSchema(many=True)
 
@@ -359,6 +413,9 @@ users_schema = UserSchema(many=True)
 
 book_schema = BookSchema()
 books_schema = BookSchema(many=True)
+
+
+
 
 
 if __name__ == "__main__":

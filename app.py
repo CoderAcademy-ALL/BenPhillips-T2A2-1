@@ -208,6 +208,7 @@ def create_comment():
     return jsonify({'message': 'Comment created successfully'})
 
 @app.route("/comments/<comment_id>", methods=["DELETE"])
+@jwt_required()
 def delete_comment(comment_id):
     comment = Comment.query.get(comment_id)
 
@@ -221,6 +222,7 @@ def delete_comment(comment_id):
         return jsonify({'message': 'Comment not found'})
     
 @app.route("/edit_comment/<comment_id>", methods=["PUT"])
+@jwt_required()
 def edit_comment(comment_id):
     comment = Comment.query.get(comment_id)
 
@@ -337,7 +339,7 @@ class Book(db.Model):
     synopsis = db.Column(db.String, nullable=False)
     publication_year = db.Column(db.Integer, nullable=False)
 
-    reviews = db.relationship('Review', back_populates='book')
+    reviews = db.relationship('Review', back_populates='book', cascade='all, delete')
 
 class Review(db.Model):
     __tablename__ = "reviews"
@@ -346,15 +348,15 @@ class Review(db.Model):
     review_content = db.Column(db.String, nullable=False)
     date_created = db.Column(db.Date())
 
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     username = db.Column(db.String, nullable=False)
     user = db.relationship('User', back_populates='reviews')
 
-    book_id = db.Column(db.Integer, db.ForeignKey('books.book_id'), nullable=False)
+    book_id = db.Column(db.Integer, db.ForeignKey('books.book_id', ondelete='CASCADE'), nullable=False)
     title = db.Column(db.String, nullable=False)
     book = db.relationship('Book', back_populates='reviews')
 
-    comments = db.relationship('Comment', back_populates='review')
+    comments = db.relationship('Comment', back_populates='review', cascade='all, delete')
 
 class Comment(db.Model):
     __tablename__ = "comments"
@@ -363,11 +365,11 @@ class Comment(db.Model):
     comment_content = db.Column(db.String, nullable=False)
     date_created = db.Column(db.Date())
 
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     username = db.Column(db.String, nullable=False)
     user = db.relationship('User', back_populates='comments')
 
-    review_id = db.Column(db.Integer, db.ForeignKey('reviews.review_id'), nullable=False)
+    review_id = db.Column(db.Integer, db.ForeignKey('reviews.review_id', ondelete='CASCADE'), nullable=False)
     review = db.relationship('Review', back_populates='comments')
 
 class CommentSchema(ma.Schema):
@@ -379,7 +381,7 @@ class CommentSchema(ma.Schema):
     ordered = True
 
 class ReviewSchema(ma.Schema):
-  user = fields.Nested('UserSchema')
+  user = fields.Nested('UserSchema', exclude=['reviews'])
   book = fields.Nested('BookSchema')
   comments = fields.List(fields.Nested('CommentSchema', exclude=['review', 'review_id']))
 
@@ -390,7 +392,7 @@ class ReviewSchema(ma.Schema):
 
 class UserSchema(ma.Schema):
     reviews = fields.List(fields.Nested('ReviewSchema'), exclude=['user', 'id'])
-    comments = fields.List(fields.Nested('CommentSchema', exclude=['user', 'id']))
+    comments = fields.List(fields.Nested('CommentSchema'))
 
     class Meta:
         fields = ('id', 'username', 'email', 'password', 'is_admin', 'reviews', 'comments')

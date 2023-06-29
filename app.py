@@ -5,6 +5,7 @@ from marshmallow import fields
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity
 from datetime import timedelta, date
+from collections import OrderedDict
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select
 import os
@@ -115,11 +116,18 @@ def admin_or_owner_required(owner_email):
     user = db.session.scalar(stmt)
     if not (user and (user.is_admin or user_email == owner_email)):
         abort(401, description='You must be an admin or the owner')
+
     
 @app.route("/books", methods=["GET"])
 def books():
     books_list = Book.query.all()
     result = books_schema.dump(books_list)
+    return jsonify(result)
+
+@app.route("/reviews", methods=["GET"])
+def reviews():
+    reviews_list = Review.query.all()
+    result = reviews_schema.dump(reviews_list)
     return jsonify(result)
 
 
@@ -162,19 +170,27 @@ def book_details(book_id: int):
         return jsonify(message="That book does not exist"), 404
     
 @app.route('/add_review', methods=['POST'])
+@jwt_required()
 def add_review():
     review_data = request.json
 
+    book_id = review_data['book_id']
+    book = Book.query.get(book_id)
+
+    user_email = get_jwt_identity()
+    stmt = db.select(User).filter_by(email=user_email)
+    user = db.session.scalar(stmt)
+
     new_review = Review(
         review_content=review_data['review_content'],
-        date_created=review_data['date_created'],
-        username=review_data['username'],
+        date_created=date.today(),
+        username=user.username,
         book_id=review_data['book_id'],
-        user_id=review_data['user_id'],
-        title=review_data['title']
+        user_id=user.id,
+        title=book.title
+        # review_data['title']
     )
 
-    user = User.query.get(review_data['user_id'])
     book = Book.query.get(review_data['book_id'])
     user.reviews.append(new_review)
     book.reviews.append(new_review)
@@ -184,30 +200,35 @@ def add_review():
 
     return jsonify(message='Review added successfully'), 201
 
-@app.route("/comments", methods=["POST"])
+
+
+@app.route("/add_comment", methods=["POST"])
+@jwt_required()
 def create_comment():
     
     comment_data = request.json
 
     comment_content = comment_data.get('comment_content')
-    username = comment_data.get('username')
-    user_id = comment_data.get('user_id')
     review_id = comment_data.get('review_id')
+
+    user_email = get_jwt_identity()
+    stmt = db.select(User).filter_by(email=user_email)
+    user = db.session.scalar(stmt)
 
     new_comment = Comment(
         comment_content=comment_content,
-        username=username,
-        user_id=user_id,
+        username=user.username,
+        user_id=user.id,
         review_id=review_id,
         date_created=date.today()
     )
 
     db.session.add(new_comment)
     db.session.commit()
-
     return jsonify({'message': 'Comment created successfully'})
 
-@app.route("/comments/<comment_id>", methods=["DELETE"])
+
+@app.route("/delete_comment/<comment_id>", methods=["DELETE"])
 @jwt_required()
 def delete_comment(comment_id):
     comment = Comment.query.get(comment_id)

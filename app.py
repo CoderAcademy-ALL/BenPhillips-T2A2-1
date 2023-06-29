@@ -124,13 +124,6 @@ def books():
     result = books_schema.dump(books_list)
     return jsonify(result)
 
-@app.route("/reviews", methods=["GET"])
-def reviews():
-    reviews_list = Review.query.all()
-    result = reviews_schema.dump(reviews_list)
-    return jsonify(result)
-
-
 @app.route("/register", methods=['POST'])
 def register():
     email = request.form['email']
@@ -188,7 +181,6 @@ def add_review():
         book_id=review_data['book_id'],
         user_id=user.id,
         title=book.title
-        # review_data['title']
     )
 
     book = Book.query.get(review_data['book_id'])
@@ -402,12 +394,12 @@ class CommentSchema(ma.Schema):
     ordered = True
 
 class ReviewSchema(ma.Schema):
-  user = fields.Nested('UserSchema', exclude=['reviews'])
+  user = fields.Nested('UserSchema', exclude=['reviews', 'username'])
   book = fields.Nested('BookSchema')
   comments = fields.List(fields.Nested('CommentSchema', exclude=['review', 'review_id']))
 
   class Meta:
-    fields = ('review_id', 'review_content', 'date_created', 'user', 'book', 'username', 'review_content', 'id', 'date_created', 'comments')
+    fields = ('review_id', 'review_content', 'date_created', 'id', 'username', 'comments', 'title')
     ordered = True
 
 
@@ -418,8 +410,9 @@ class UserSchema(ma.Schema):
     class Meta:
         fields = ('id', 'username', 'email', 'password', 'is_admin', 'reviews', 'comments')
 
+
 class BookSchema(ma.Schema):
-    reviews = fields.List(fields.Nested('ReviewSchema', only=['username', 'review_content', 'id', 'date_created', 'comments']))
+    reviews = fields.List(fields.Nested('ReviewSchema', only=['username', 'review_content', 'review_id', 'date_created', 'comments']))
     
     class Meta:
         fields = ('book_id', 'title', 'author', 'genre', 'synopsis', 'publication_year', 'user', 'reviews')

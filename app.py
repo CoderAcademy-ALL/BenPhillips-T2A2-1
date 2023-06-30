@@ -8,21 +8,28 @@ from datetime import timedelta, date
 from collections import OrderedDict
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select
-import os
+from os import environ
+from models.user import User, UserSchema
+from models.book import Book, BookSchema
+from models.comment import Comment, CommentSchema
+from models.review import Review, ReviewSchema
 import psycopg2
+from init import db, ma, bcrypt, jwt
 
 app = Flask(__name__)
 
-app.config[
-    "SQLALCHEMY_DATABASE_URI"
-] = "postgresql+psycopg2://ben:amigo@localhost:5432/bookclub"
-app.config['JWT_SECRET_KEY'] = 'friend'
+app.config["SQLALCHEMY_DATABASE_URI"] = environ.get('DB_URI')
+app.config['JWT_SECRET_KEY'] = environ.get('JWT_KEY')
+
+db.init_app(app)
+ma.init_app(app)
+jwt.init_app(app)
+bcrypt.init_app(app)
 
 
-db = SQLAlchemy(app)
-ma = Marshmallow(app)
-jwt = JWTManager(app)
-bcrypt = Bcrypt(app)
+
+
+
 
 @app.cli.command('db_create')
 def db_create():
@@ -328,95 +335,7 @@ def delete_review(review_id: int):
          return jsonify(message="That review does not exist"), 202
 
 
-    # database models
-class User(db.Model):
-    __tablename__ = "users"
-
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String, nullable=False)
-    email = db.Column(db.String, nullable=False, unique=True)
-    password = db.Column(db.String, nullable=False)
-    is_admin = db.Column(db.Boolean, default=False)
-
-    reviews = db.relationship('Review', back_populates='user')
-
-    comments = db.relationship('Comment', back_populates='user')
-
-class Book(db.Model):
-    __tablename__ = "books"
-
-    book_id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String, nullable=False)
-    author = db.Column(db.String, nullable=False, unique=True)
-    genre = db.Column(db.String, nullable=False)
-    synopsis = db.Column(db.String, nullable=False)
-    publication_year = db.Column(db.Integer, nullable=False)
-
-    reviews = db.relationship('Review', back_populates='book', cascade='all, delete')
-
-class Review(db.Model):
-    __tablename__ = "reviews"
-
-    review_id = db.Column(db.Integer, primary_key=True)
-    review_content = db.Column(db.String, nullable=False)
-    date_created = db.Column(db.Date())
-
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
-    username = db.Column(db.String, nullable=False)
-    user = db.relationship('User', back_populates='reviews')
-
-    book_id = db.Column(db.Integer, db.ForeignKey('books.book_id', ondelete='CASCADE'), nullable=False)
-    title = db.Column(db.String, nullable=False)
-    book = db.relationship('Book', back_populates='reviews')
-
-    comments = db.relationship('Comment', back_populates='review', cascade='all, delete')
-
-class Comment(db.Model):
-    __tablename__ = "comments"
-
-    comment_id = db.Column(db.Integer, primary_key=True)
-    comment_content = db.Column(db.String, nullable=False)
-    date_created = db.Column(db.Date())
-
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
-    username = db.Column(db.String, nullable=False)
-    user = db.relationship('User', back_populates='comments')
-
-    review_id = db.Column(db.Integer, db.ForeignKey('reviews.review_id', ondelete='CASCADE'), nullable=False)
-    review = db.relationship('Review', back_populates='comments')
-
-class CommentSchema(ma.Schema):
-  user = fields.Nested('UserSchema', only=['username'])
-  review = fields.Nested('ReviewSchema', only=['review_id'])
-
-  class Meta:
-    fields = ('comment_content', 'username', 'review', 'review_id')
-    ordered = True
-
-class ReviewSchema(ma.Schema):
-  user = fields.Nested('UserSchema', exclude=['reviews', 'username'])
-  book = fields.Nested('BookSchema')
-  comments = fields.List(fields.Nested('CommentSchema', exclude=['review', 'review_id']))
-
-  class Meta:
-    fields = ('review_id', 'review_content', 'date_created', 'id', 'username', 'comments', 'title')
-    ordered = True
-
-
-class UserSchema(ma.Schema):
-    reviews = fields.List(fields.Nested('ReviewSchema'), exclude=['user', 'id'])
-    comments = fields.List(fields.Nested('CommentSchema'))
-
-    class Meta:
-        fields = ('id', 'username', 'email', 'password', 'is_admin', 'reviews', 'comments')
-
-
-class BookSchema(ma.Schema):
-    reviews = fields.List(fields.Nested('ReviewSchema', only=['username', 'review_content', 'review_id', 'date_created', 'comments']))
-    
-    class Meta:
-        fields = ('book_id', 'title', 'author', 'genre', 'synopsis', 'publication_year', 'user', 'reviews')
-
+    # database model
 
 review_schema = ReviewSchema()
 reviews_schema = ReviewSchema(many=True)

@@ -22,21 +22,32 @@ from blueprints.comments_bp import comments_bp
 from blueprints.reviews_bp import reviews_bp
 
 def create_app():
+    # Create a Flask application instance
     app = Flask(__name__)
 
+    # Configure the SQLAlchemy database URI from environment variables
     app.config["SQLALCHEMY_DATABASE_URI"] = environ.get('DB_URI')
+
+    # Configure the JWT secret key from environment variables
     app.config['JWT_SECRET_KEY'] = environ.get('JWT_KEY')
 
+    # Initialize the SQLAlchemy database
     db.init_app(app)
+
+    # Initialize the Marshmallow serializer/deserializer
     ma.init_app(app)
+
+    # Initialize the Flask-JWT-Extended extension
     jwt.init_app(app)
+
+    # Initialize the Flask-Bcrypt extension for password hashing
     bcrypt.init_app(app)
 
-    app.register_blueprint(cli_bp)
-    app.register_blueprint(auth_bp)
-    app.register_blueprint(books_bp)
-    app.register_blueprint(comments_bp)
-    app.register_blueprint(reviews_bp)
+    # Register the blueprints for different parts of the application
+    app.register_blueprint(cli_bp)  # CLI blueprint
+    app.register_blueprint(auth_bp)  # Authentication blueprint
+    app.register_blueprint(books_bp)  # Books blueprint
+    app.register_blueprint(comments_bp)  # Comments blueprint
+    app.register_blueprint(reviews_bp)  # Reviews blueprint
 
     return app
-

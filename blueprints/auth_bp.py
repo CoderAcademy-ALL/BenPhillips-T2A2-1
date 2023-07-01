@@ -9,11 +9,11 @@ from init import db, bcrypt
 auth_bp = Blueprint('auth', __name__)
 
 def admin_required():
-  user_id = get_jwt_identity()
-  stmt = db.select(User).filter_by(id=user_id)
+  user_email = get_jwt_identity()
+  stmt = db.select(User).filter_by(email=user_email)
   user = db.session.scalar(stmt)
   if not (user and user.is_admin):
-    abort(401)
+    abort(401, description='You must be an admin')
 
 def admin_or_owner_required(owner_email):
     user_email = get_jwt_identity()
@@ -36,6 +36,7 @@ def register():
         db.session.add(user)
         db.session.commit()
         return UserSchema(exclude=['password']).dump(user), 201
+    
     
 @auth_bp.route('/login', methods=['POST'])
 def login():

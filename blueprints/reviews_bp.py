@@ -47,12 +47,7 @@ def update_review():
     review = Review.query.filter_by(review_id=review_id).first()
     if review:
         admin_or_owner_required(review.user.email)
-        review.review_content=request.json['review_content'],
-        review.date_created=request.json['date_created'],
-        review.username=request.json['username'],
-        review.book_id=int(request.json['book_id']),
-        review.user_id=int(request.json['user_id']),
-        review.title=request.json['title']
+        review.review_content=request.json['review_content']
         db.session.commit()
         return jsonify(message="You updated a review!"), 202
     else:

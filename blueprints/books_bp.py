@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 from models.book import Book, BookSchema
 from init import db
+from blueprints.auth_bp import admin_required
 
 books_bp = Blueprint('books', __name__)
 
@@ -26,8 +27,8 @@ def book_details(book_id: int):
 @jwt_required()
 def add_book():
     title = request.form['title']
-    test = Book.query.filter_by(title=title).first()
-    if test:
+    book = Book.query.filter_by(title=title).first()
+    if book:
         return jsonify("There is already a book with that title"), 409
     else:
         genre = request.form['genre']
@@ -47,6 +48,7 @@ def update_book():
     book_id = int(request.form['book_id'])
     book = Book.query.filter_by(book_id=book_id).first()
     if book:
+        admin_required()
         book.title = request.form['title']
         book.author = request.form['author']
         book.genre = request.form['genre']
@@ -62,6 +64,7 @@ def update_book():
 def delete_book(book_id: int):
     book = Book.query.filter_by(book_id=book_id).first()
     if book:
+        admin_required()
         db.session.delete(book)
         db.session.commit()
         return jsonify(message="You deleted a book"), 202

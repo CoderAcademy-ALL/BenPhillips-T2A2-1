@@ -21,5 +21,5 @@ class CommentSchema(ma.Schema):
   review = fields.Nested('ReviewSchema', only=['review_id'])
 
   class Meta:
-    fields = ('comment_content', 'username', 'review', 'review_id')
+    fields = ('comment_content', 'username', 'comment_id', 'review', 'review_id')
     ordered = True

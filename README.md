@@ -19,43 +19,30 @@ A key functionality of an ORM is object-oriented data access. ORM enables develo
 R5 	Document all endpoints for your API
 
     Books:
-        GET /books: Retrieve a list of books
-        GET /books/{bookId}: Retrieve details of a specific book
-        POST /books: Create a new book
-        PUT /books/{bookId}: Update details of a specific book
-        DELETE /books/{bookId}: Delete a specific book
+        GET /books: Retrieve a list of books along with their reviews and review comments
+        GET /book_details/{bookId}: Retrieve details of a specific book
+        POST /add_book: Create a new book
+        PUT /update_book: Update details of a specific book
+        DELETE /delete_book/{bookId}: Delete a specific book
 
     Reviews:
-        GET /books/{bookId}/reviews: Retrieve reviews for a specific book
-        GET /reviews/{reviewId}: Retrieve details of a specific review
-        POST /books/{bookId}/reviews: Create a new review for a specific book
-        PUT /reviews/{reviewId}: Update details of a specific review
-        DELETE /reviews/{reviewId}: Delete a specific review
+        POST /add_review: Create a new review for a specific book
+        PUT /update_review: Update details of a specific review
+        DELETE /delete_review: Delete a specific review
 
     Comments:
-        GET /reviews/{reviewId}/comments: Retrieve comments for a specific review
-        GET /comments/{commentId}: Retrieve details of a specific comment
-        POST /reviews/{reviewId}/comments: Create a new comment for a specific review
-        PUT /comments/{commentId}: Update details of a specific comment
-        DELETE /comments/{commentId}: Delete a specific comment
+        POST /add_comment: Create a new comment for a specific review
+        PUT /edit_comment/{commentId}: Update details of a specific comment
+        DELETE /delete_comment/{commentId}: Delete a specific comment
 
     Users:
-        GET /users: Retrieve a list of users
-        GET /users/{userId}: Retrieve details of a specific user
-        POST /users: Create a new user
-        PUT /users/{userId}: Update details of a specific user
-        DELETE /users/{userId}: Delete a specific user
+        POST /register: Register a new user
+        PUT /login: Login as a user
 
-    Readlists:
-        GET /users/{userId}/readlists: Retrieve readlists for a specific user
-        GET /readlists/{readlistId}: Retrieve details of a specific readlist
-        POST /users/{userId}/readlists: Create a new readlist for a specific user
-        PUT /readlists/{readlistId}: Update details of a specific readlist
-        DELETE /readlists/{readlistId}: Delete a specific readlist
 
 R6 	An ERD for your app
 
-![Entity relationship diagram](ERD.png)
+![Entity relationship diagram](Final_ERD.png)
 
 R7 	Detail any third party services that your app will use
 
@@ -63,15 +50,17 @@ The API requires various third party services in order to function. I will be us
 
 R8 	Describe your projects models in terms of the relationships they have with each other
 
-Users to Reviews uses a One-to-Many relationship as each user can have multiple reviews, but each review belongs to only one user. Users to Comments utilizes a One-to-Many relationship. Each user can post multiple comments, but each comment belongs to only one user. Users to Readlists is a One-to-Many relationship. Each user can create multiple readlists, but each readlist belongs to only one user. Books to Reviews has a One-to-Many relationship. Each book can have multiple reviews, but each review belongs to only one book. Books to ReadlistBooks uses a Many-to-Many relationship. Each book can be associated with multiple readlists, and each readlist can contain multiple books. Finally, Reviews to Comments is a One-to-Many relationship. Each review can have multiple comments, but each comment belongs to only one review.
+The Book model represents a book in the database. Book model has a one to many relationship with the review model. The book schema includes nested fields for reviews related to the books. The Comment model represents a comment on a book review in the database. Comment model has a many-to-one relationship with the User model and the Review model and is accessible through the user and review attribute in comment model. The comment schema includes nested fields for related user and review. The Review model represents a book review. Review model has a many-to-one relationship with User and Book models and a one-to-many with Comment model. The review schema includes nested fields for related user, book and comments. The User model represents a user in the database. User model has a one-to-many relationship with the Review and Comment models. User model also includes nested fields for reviews and comments that the user has done.
 
 R9 	Discuss the database relations to be implemented in your application
 
- Users to reviews, I chose this relationship as I wanted each user to be able to write multiple reviews and since each review belongs to them no other user can edit what they've written. For Users to Comments, each comment belongs to one user so users can know who wrote it and can't edit it. Users to readlists, I want users to be able to make as many readlists as they want so the relationship I've chosen is appropriate as they belong to the user nobody else can change them. Books to reviews, it would be lame if a book could only be reviewed one time hence each book can have multiple reviews. A review can only belong to one book as it would be confusing otherwise. Books to ReadlistBooks relationship allows any user to put a book in their own readlist and allows for every readlist to have various books in it.  Reviews to Comments relationship is designed so reviews can be commented on by various users and so a comment can only be in one review to avoid confusion.
+Starting from the Books model, we can see that from the Book ID stems a one (mandatory) to a many (optional) relational line connecting with the Book ID in Reviews so Book ID is a foreign key in Reviews. From the reviews table, the review ID (primary key) also has a one (mandatory) to many (optional) relational line coming out of it and connecting with the review ID in the reviews table. In the other direction, from the users table we can see a one (mandatory) to many (optional) relational line coming out of User ID in the Users table and connecting with the User IDs in the Comments and Reviews table. 
 
 R10 	Describe the way tasks are allocated and tracked in your project
 
-I started work on this project on June 24rd so the following plan is designed with that in mind.
+I will be tracking the progress of my work using the Kanban website 'Trello'. I started work on this project on June 24rd so the following plan is designed with that in mind.
+
+https://trello.com/invite/b/sOnxtJrs/ATTIdda6d1c2e1de6ef72717b5bfb591dd8b4D95F3EF/t2a2-board
 
 Day 1 (June 24th):
 
@@ -91,39 +80,29 @@ Day 2 (June 25th):
 Day 3 (June 26th):
 
     Develop authentication and authorization mechanisms for the API.
-    Implement additional API endpoints based on the defined specifications.
     Handle validation and error handling for API requests.
 
 Day 4 (June 27th):
 
     Implement database integration.
     Ensure data security and privacy measures are in place.
-    Write integration tests to verify API functionality and data interactions.
 
 Day 5 (June 28th):
 
     Perform API testing and debugging to ensure proper functionality.
-    Document the API endpoints, request/response formats, and usage examples.
     Review and refactor code for quality and maintainability.
 
 Day 6 (June 29th):
 
     Conduct thorough testing of the API, including functional, integration, and performance testing.
     Fix any identified bugs or issues and retest the fixed functionality.
-    Prepare the API for deployment, including configuration setup and environment preparation.
 
 Day 7 (June 30th):
-
-    Deploy the API to a suitable production environment.
-    Set up logging and monitoring tools to track API performance.
-    Finalize the API documentation, including detailed usage instructions and code examples.
-
-Day 8 (July 1st):
 
     Conduct a final review of the API's documentation and ensure it is accurate and up to date.
     Address any outstanding issues or bugs found during testing and deployment.
 
-Day 9 (July 2nd):
+Day 8 (July 1st):
 
     Finalise all documentation
     Upload project

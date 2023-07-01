@@ -21,39 +21,22 @@ from blueprints.books_bp import books_bp
 from blueprints.comments_bp import comments_bp
 from blueprints.reviews_bp import reviews_bp
 
-app = Flask(__name__)
+def create_app():
+    app = Flask(__name__)
 
-app.config["SQLALCHEMY_DATABASE_URI"] = environ.get('DB_URI')
-app.config['JWT_SECRET_KEY'] = environ.get('JWT_KEY')
+    app.config["SQLALCHEMY_DATABASE_URI"] = environ.get('DB_URI')
+    app.config['JWT_SECRET_KEY'] = environ.get('JWT_KEY')
 
-db.init_app(app)
-ma.init_app(app)
-jwt.init_app(app)
-bcrypt.init_app(app)
+    db.init_app(app)
+    ma.init_app(app)
+    jwt.init_app(app)
+    bcrypt.init_app(app)
 
-app.register_blueprint(cli_bp)
-app.register_blueprint(auth_bp)
-app.register_blueprint(books_bp)
-app.register_blueprint(comments_bp)
-app.register_blueprint(reviews_bp)
+    app.register_blueprint(cli_bp)
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(books_bp)
+    app.register_blueprint(comments_bp)
+    app.register_blueprint(reviews_bp)
 
-    # database model
+    return app
 
-review_schema = ReviewSchema()
-reviews_schema = ReviewSchema(many=True)
-
-comment_schema = CommentSchema()
-comments_schema = CommentSchema(many=True)
-
-user_schema = UserSchema()
-users_schema = UserSchema(many=True)
-
-book_schema = BookSchema()
-books_schema = BookSchema(many=True)
-
-
-
-
-
-if __name__ == "__main__":
-    app.run(debug=True)

@@ -43,7 +43,7 @@ R5 	Document all endpoints for your API
 
 R6 	An ERD for your app
 
-![Entity relationship diagram](Final_ERD.png)
+![Entity relationship diagram](image.png)
 
 R7 	Detail any third party services that your app will use
 
